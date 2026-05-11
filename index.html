@@ -171,8 +171,13 @@
                     <p id="status" class="text-blue-200 text-xs">กำลังเชื่อมต่อ...</p>
                 </div>
             </div>
-            <div class="text-right hidden sm:block">
-                <p class="text-sm font-bold bg-blue-800 px-3 py-1.5 rounded-lg" id="current-date"></p>
+<div class="flex items-center space-x-3">
+                <button onclick="requestNotificationPermission()" class="bg-emerald-500 hover:bg-emerald-600 text-white py-1.5 px-3 rounded-lg text-xs font-bold transition flex items-center shadow-md">
+                    🔔 เปิดรับแจ้งเตือน
+                </button>
+                <div class="text-right hidden sm:block">
+                    <p class="text-sm font-bold bg-blue-800 px-3 py-1.5 rounded-lg" id="current-date"></p>
+                </div>
             </div>
         </div>
 
@@ -350,6 +355,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc, deleteDoc, query, where, getDocs, writeBatch, Timestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBHuZGyY1F3v4rCrhrpt9YB90C0Ahh-stE",
@@ -800,15 +806,54 @@
                 await updateDoc(doc(db, getPath('requests'), docId), { status: newStatus });
             } catch (error) { showMessage("เกิดข้อผิดพลาด", true); }
         };
+// กำหนดตัวแปรสำหรับเชื่อมต่อ Messaging
+        const messaging = getMessaging(app);
 
-        // PWA Service Worker Registration
+        // ระบบ PWA และ Push Notification
+        let swRegistration = null;
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(reg => console.log('Service Worker Registered'))
-                    .catch(err => console.error('Service Worker Registration Failed', err));
+            window.addEventListener('load', async () => {
+                try {
+                    swRegistration = await navigator.serviceWorker.register('./sw.js');
+                    console.log('Service Worker Registered');
+                } catch (err) {
+                    console.error('Service Worker Registration Failed', err);
+                }
             });
         }
+
+        window.requestNotificationPermission = async function() {
+            try {
+                const permission = await Notification.requestPermission();
+                if (permission === 'granted') {
+                    // *** สำคัญ: นำ VAPID Key ใหม่จากโปรเจกต์ my-company-time-tracking มาใส่ที่นี่ ***
+                    const vapidKey = 'YOUR_NEW_VAPID_KEY_HERE';
+                    
+                    const token = await getToken(messaging, { 
+                        vapidKey: vapidKey, 
+                        serviceWorkerRegistration: swRegistration 
+                    });
+                    
+                    if (token) {
+                        showMessage("เชื่อมต่อระบบแจ้งเตือนสำเร็จ!");
+                        console.log("FCM Token ของผู้จัดการ:", token);
+                        // ได้ Token มาแล้ว เก็บไว้สำหรับยิงแจ้งเตือนเตือนความจำจากหลังบ้านได้เลย
+                    }
+                } else {
+                    showMessage("คุณยังไม่ได้อนุญาตการแจ้งเตือน", true);
+                }
+            } catch (err) {
+                console.error(err);
+                showMessage("เกิดข้อผิดพลาดในการขอ Token", true);
+            }
+        };
+
+        // แสดงแจ้งเตือนกรณีเผลอเปิดแอป Dashboard ทิ้งไว้
+        onMessage(messaging, (payload) => {
+            console.log('Message received. ', payload);
+            showMessage(`🔔 ${payload.notification.title}: ${payload.notification.body}`);
+        });
+
 
     </script>
 </body>
