@@ -827,7 +827,7 @@
                 const permission = await Notification.requestPermission();
                 if (permission === 'granted') {
                     // *** สำคัญ: นำ VAPID Key ใหม่จากโปรเจกต์ my-company-time-tracking มาใส่ที่นี่ ***
-                    const vapidKey = 'YOUR_NEW_VAPID_KEY_HERE';
+                    const vapidKey = 'BMwDlTh-eeEaePWhqhshBvHxbFEOYt7x3vCGcuQkelZU-k5BWnZkwG5s1pagyubHpC5AZQVzfMyBsXT6CwunIm8';
                     
                     const token = await getToken(messaging, { 
                         vapidKey: vapidKey, 
